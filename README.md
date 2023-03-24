@@ -38,7 +38,7 @@ Your current directory will be mapped to `/home1` on the container. The envirome
 
 ## Run the image on TACC resources via Apptainer
 
-Download the Docker image from DockerHub and save it in $SCRATCH
+Download the Docker image from DockerHub and save it in $SCRATCH. Note: we must request a node from the interactive queue via `idev` to use `apptainer`.
 ```
 idev -N 1
 cd $SCRATCH
@@ -47,12 +47,13 @@ module load tacc-apptainer/1.1.3
 apptainer pull docker://uvilla/fenics-2019.1-tacc-mvapich2.3-ib:latest
 ```
 
-You can test the container with
+From a compute node, you can test the container with
 ```
 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif hellow
 ```
 
-First time run of `hIPPYlib`. Before using hIPPYlib in parallel, the FEniCS jit compiler need to create new folders in your `$HOME/.cache` directory. To do so, you simply need to run `python -c "import hippylib"` in serial.
+### First time run of `hIPPYlib`
+Before being able to use hIPPYlib in parallel, the FEniCS jit compiler needs to create new folders in your `$HOME/.cache` directory. To do so, you need to run `python -c "import hippylib"` in serial (again from a compute node).
 
 ```
 git clone https://github.com/hippylib/hippylib.git
@@ -60,11 +61,15 @@ cd hippylib
 ibrun -n 1 apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 -c "import hippylib"
 ```
 
+### Running `hIPPYlib` in parallel from the interactive queue
+
 Now you can run the subsurface Poisson example in parallel
 ```
 cd applications/poisson
 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 model_subsurf.py
 ```
+
+### Slurm submission to the normal queue
 
 For an example of (non-interactive) job submission see [hippylib-ex.slurm](hippylib-ex.slurm).
 The script assumes that the apptainer contanaier is in `$SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif` and `hIPPYlib` in `$SCRATCH/hippylib`.
