@@ -2,6 +2,10 @@
 
 Here we build a Docker Image with a working FEniCS installation based upon the TACC `tacc-ubuntu18-mvapich2.3-ib` image.
 
+Supported systems: `Frontera`, `Maverick2`.
+
+Image is available on [DockerHub](https://hub.docker.com/r/uvilla/fenics-2019.1-tacc-mvapich2.3-ib).
+
 ## Build the image
 
 To build the image:
@@ -10,7 +14,7 @@ cd tacc-mvapich2.3-ib
 docker build -t fenics-2019.1-tacc-mvapich2.3-ib .
 ```
 
-To upload the image of DockerHub
+To upload the image on DockerHub
 
 ```
 docker login
