@@ -6,7 +6,9 @@ Supported systems: `Frontera`, `Maverick2`.
 
 Image is available on [DockerHub](https://hub.docker.com/r/uvilla/fenics-2019.1-tacc-mvapich2.3-ib).
 
-## Build the image
+For more information regarding containers at TACC see [here](https://containers-at-tacc.readthedocs.io/en/latest/containers/00.overview.html).
+
+## Build the image (locally)
 
 To build the image:
 ```
@@ -28,19 +30,13 @@ docker push uvilla/fenics-2019.1-tacc-mvapich2.3-ib:latest
 
 To run the container locally using docker, use the command
 ```
-docker run -e MV2_SMP_USE_CMA=0 -ti -v $(pwd):/home1/ uvilla/fenics-2019.1-tacc-mvapich2.3-ib:latest /bin/bash 
+docker run -e MV2_SMP_USE_CMA=0 -e MV2_ENABLE_AFFINITY=0 -ti -v $(pwd):/home1/ uvilla/fenics-2019.1-tacc-mvapich2.3-ib:latest /bin/bash 
 ```
-Your current directory will be mapped to `/home1` on the container
+Your current directory will be mapped to `/home1` on the container. The enviromental variables 
+`MV2_SMP_USE_CMA=0` and `MV2_ENABLE_AFFINITY=0` are needed when running local to avoid some nasty MPI errors.
 
-
-To run parallel jobs, you'll need to create the additional enviromental variables below (otherwise you'll get some nasty MPI errors)
-```
-export MV2_ENABLE_AFFINITY=0
-export MV2_SMP_USE_CMA=0
-```
 
 ## Run the image on TACC resources via Apptainer
-
 
 Download the Docker image from DockerHub and save it in $SCRATCH
 ```
@@ -56,7 +52,7 @@ You can test the container with
 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif hellow
 ```
 
-First time run of `hIPPYlib`. Before using hIPPYlib in parallel, the FEniCS jit compiler need to create new folders in your `$HOME/.cache` directory. To do so, you simply need to run `python -c "import hippylib"` in serial
+First time run of `hIPPYlib`. Before using hIPPYlib in parallel, the FEniCS jit compiler need to create new folders in your `$HOME/.cache` directory. To do so, you simply need to run `python -c "import hippylib"` in serial.
 
 ```
 git clone https://github.com/hippylib/hippylib.git
@@ -70,4 +66,10 @@ cd applications/poisson
 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 model_subsurf.py
 ```
 
+For an example of (non-interactive) job submission see [hippylib-ex.slurm](hippylib-ex.slurm).
+The script assumes that the apptainer contanaier is in `$SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif` and `hIPPYlib` in `$SCRATCH/hippylib`.
+
+```
+sbatch hippylib-ex.slurm
+```
 
