@@ -43,7 +43,7 @@
 
 # Load the correct modules
 module load mvapich2-x/2.3
-module load tacc-apptainer/1.1.3
+module load tacc-apptainer/1.1.8
 module list
 date
 pwd
@@ -52,4 +52,4 @@ pwd
 export HIPPYLIB_BASE_DIR=$SCRATCH/hippylib
 
 # Launch MPI code... 
-ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 $HIPPYLIB_BASE_DIR/applications/poisson/model_subsurf.py
+MV2_SMP_USE_CMA=0 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 $HIPPYLIB_BASE_DIR/applications/poisson/model_subsurf.py
