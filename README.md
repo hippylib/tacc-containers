@@ -43,13 +43,13 @@ Download the Docker image from DockerHub and save it in $SCRATCH. Note: we must 
 idev -N 1
 cd $SCRATCH
 module load mvapich2-x/2.3
-module load tacc-apptainer/1.1.3
+module load tacc-apptainer/1.1.8
 apptainer pull docker://uvilla/fenics-2019.1-tacc-mvapich2.3-ib:latest
 ```
 
 From a compute node, you can test the container with
 ```
-ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif hellow
+MV2_SMP_USE_CMA=0 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif hellow
 ```
 
 #### First time run of `hIPPYlib`
@@ -58,7 +58,7 @@ Before being able to use hIPPYlib in parallel, the FEniCS jit compiler needs to 
 ```
 git clone https://github.com/hippylib/hippylib.git
 cd hippylib
-ibrun -n 1 apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 -c "import hippylib"
+MV2_SMP_USE_CMA=0 ibrun -n 1 apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 -c "import hippylib"
 ```
 
 #### Running `hIPPYlib` in parallel from the interactive queue
@@ -66,7 +66,7 @@ ibrun -n 1 apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif py
 Now you can run the subsurface Poisson example in parallel
 ```
 cd applications/poisson
-ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 model_subsurf.py
+MV2_SMP_USE_CMA=0 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-mvapich2.3-ib_latest.sif python3 model_subsurf.py
 ```
 
 #### Slurm submission to the normal queue
