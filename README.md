@@ -120,3 +120,27 @@ Now you can run the subsurface Poisson example in parallel
 cd applications/poisson
 ibrun apptainer run $SCRATCH/fenics-2019.1-tacc-impi19.0.7-common_latest.sif python3 model_subsurf.py
 ```
+
+## MVAPICH Compiler with Python3.12
+
+The Docker image can be found on DockerHub: [mvapich compiler](https://hub.docker.com/repository/docker/mathewgaohu/fenics-2019.1-tacc-mvapich2.3-ib/general).
+
+We select package versions compatible with Python 3.12. Please find the updated list below:
+
+```
+fenics-dijitso            2019.2.0.dev0
+fenics-dolfin             2019.2.0.dev0
+fenics-ffc                2019.2.0.dev0
+fenics-fiat               2019.2.0.dev0
+fenics-ufl-legacy         2022.3.0
+jupyterlab                4.1.2
+matplotlib                3.8.3
+mpi4py                    3.1.5
+mshr                      2019.1.0
+notebook                  7.1.0
+numpy                     1.26.4
+petsc4py                  3.20.2
+pybind11                  2.11.1
+scipy                     1.12.0
+slepc4py                  3.20.1
+```
