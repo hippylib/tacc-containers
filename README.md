@@ -6,7 +6,7 @@ I have made modifications to the Dockerfile originally from the [FEniCS TACC Doc
 
 For detailed instructions on building and testing, please refer to the upstream repository at [FEniCS TACC Docker image](https://github.com/hippylib/tacc-containers)
 
-Packages and verions (Python 3.12.2):
+Packages and versions (Python 3.12.2):
 
 ```
 Package                   Version
