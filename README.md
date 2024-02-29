@@ -1,10 +1,10 @@
 # FEniCS TACC Docker image (Python 3.12.2)
 
-This image is available on DockerHub: [mvapich compiler](https://hub.docker.com/repository/docker/mathewgaohu/fenics-2019.1-tacc-mvapich2.3-ib/general)
+The Docker image can be found on DockerHub: [mvapich compiler](https://hub.docker.com/repository/docker/mathewgaohu/fenics-2019.1-tacc-mvapich2.3-ib/general)
 
-I modify the Dockerfile from [FEniCS TACC Docker image](https://github.com/mathewgaohu/tacc-containers/tree/main), choosing package versions compatiable with Python 3.12.
+I have made modifications to the Dockerfile originally from the [FEniCS TACC Docker image](https://github.com/hippylib/tacc-containers), selecting package versions compatible with Python 3.12.
 
-For more information about how to build/test, please head to the upsteam repository [FEniCS TACC Docker image](https://github.com/mathewgaohu/tacc-containers/tree/main)
+For detailed instructions on building and testing, please refer to the upstream repository at [FEniCS TACC Docker image](https://github.com/hippylib/tacc-containers)
 
 Packages and verions (Python 3.12.2):
 
