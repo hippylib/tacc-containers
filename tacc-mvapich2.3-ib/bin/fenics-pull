@@ -24,25 +24,28 @@ function pull () {
             cd $project
             git pull
         else
-            if [[ "fiat" == "$project" ]] || [[ "ufl" == "$project" ]]; then
+            if [[ "fiat" == "$project" ]] || [[ "ufl-legacy" == "$project" ]]; then
 				websource="github.com/FEniCS"
             else
-               websource="bitbucket.org/fenics-project"
+                websource="bitbucket.org/fenics-project"
 			fi
             git clone https://$websource/$project.git
             cd $project
             if [ ! -z "${FENICS_VERSION}" ]; then
                 git checkout ${FENICS_VERSION}
             fi
-            if [ "ufl" == "$project" ]; then
-                git checkout tags/2021.1.0 -b v2021.0
+            if [ "ufl-legacy" == "$project" ]; then
+                git checkout tags/2022.3.0 -b v2022.3
+            fi
+            if [ "mshr" == "$project" ]; then
+                git checkout tags/2019.1.0 -b v2019.1
             fi
         fi
     done
 }
 
 if [ -z "$1" ]; then
-    pull fiat dijitso ufl ffc dolfin mshr
+    pull fiat dijitso ufl-legacy ffc dolfin mshr
 else
     pull $@
 fi

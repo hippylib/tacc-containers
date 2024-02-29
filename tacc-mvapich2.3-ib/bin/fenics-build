@@ -62,7 +62,7 @@ function build () {
 }
 
 if [ -z "$1" ]; then
-    build fiat dijitso ufl ffc dolfin mshr
+    build fiat dijitso ufl-legacy ffc dolfin mshr
 else
     build $@
 fi
