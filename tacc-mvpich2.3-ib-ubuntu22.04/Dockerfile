@@ -1,0 +1,357 @@
+ARG ADIOS2_VERSION=2.10.1
+ARG DOXYGEN_VERSION=1_11_0
+ARG GMSH_VERSION=4_13_1
+ARG HDF5_SERIES=1.14
+ARG HDF5_PATCH=3
+ARG HDF5_FIX=
+ARG KAHIP_VERSION=3.16
+ARG NUMPY_VERSION=1.26.4
+ARG PETSC_VERSION=3.21.2
+ARG SLEPC_VERSION=3.21.1
+ARG PYVISTA_VERSION=0.43.8
+ARG PETSC_SLEPC_OPTFLAGS="-O2 -march=native"
+ARG PETSC_SLEPC_DEBUGGING=0
+
+FROM tacc/tacc-base:ubuntu22.04-mvapich2.3-ib
+LABEL maintainer="Umberto Villa"
+LABEL description="FEniCSx environment with PETSc real, complex, 32-bit and 64-bit modes"
+
+ARG DOXYGEN_VERSION
+ARG GMSH_VERSION
+ARG HDF5_SERIES
+ARG HDF5_PATCH
+ARG HDF5_FIX
+ARG PETSC_VERSION
+ARG SLEPC_VERSION
+ARG ADIOS2_VERSION
+ARG KAHIP_VERSION
+ARG NUMPY_VERSION
+ARG PETSC_SLEPC_DEBUGGING
+
+
+# Number of build threads to use with make
+ARG BUILD_NP=16
+
+WORKDIR /tmp
+
+ENV OPENBLAS_NUM_THREADS=1 \
+    OPENBLAS_VERBOSE=0
+
+ENV VIRTUAL_ENV /dolfinx-env
+ENV PATH /dolfinx-env/bin:$PATH
+RUN python3 -m venv ${VIRTUAL_ENV}
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -qq update && \
+    apt-get -yq --with-new-pkgs -o Dpkg::Options::="--force-confold" upgrade && \
+    apt-get -y install \
+    cmake \
+    libboost-dev \
+    libboost-timer-dev \
+    liblapack-dev \
+    libopenblas-dev \
+    libpugixml-dev \
+    libspdlog-dev \
+    ninja-build \
+    pkg-config && \
+    apt-get clean && \
+    apt-get -y install \
+    catch2 \
+    git \
+    graphviz \
+    libeigen3-dev \
+    valgrind \
+    wget && \
+    apt-get clean && \
+    apt-get -y install \
+    libglu1 \
+    libxcursor-dev \
+    libxft2 \
+    libxinerama1 \
+    libfltk1.3-dev \
+    libfreetype6-dev  \
+    libgl1-mesa-dev \
+    libocct-foundation-dev \
+    libocct-data-exchange-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install Python packages (via pip)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir cffi numpy==${NUMPY_VERSION} setuptools wheel && \
+    pip install --no-cache-dir --no-build-isolation mpi4py
+
+# Install KaHIP
+RUN wget -nc --quiet https://github.com/kahip/kahip/archive/v${KAHIP_VERSION}.tar.gz && \
+    tar -xf v${KAHIP_VERSION}.tar.gz && \
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DNONATIVEOPTIMIZATIONS=on -B build-dir -S KaHIP-${KAHIP_VERSION} && \
+    cmake --build build-dir && \
+    cmake --install build-dir && \
+    rm -rf /tmp/*
+
+# Install HDF5
+# Note: HDF5 CMake install has numerous bugs and inconsistencies. Test carefully.
+# HDF5 overrides CMAKE_INSTALL_PREFIX by default, hence it is set
+# below to ensure that HDF5 is installed into a path where it can be
+# found.
+RUN wget -nc --quiet https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-${HDF5_SERIES}/hdf5-${HDF5_SERIES}.${HDF5_PATCH}/src/hdf5-${HDF5_SERIES}.${HDF5_PATCH}${HDF5_FIX}.tar.gz && \
+    tar xfz hdf5-${HDF5_SERIES}.${HDF5_PATCH}${HDF5_FIX}.tar.gz && \
+    cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DHDF5_ENABLE_PARALLEL=on -DHDF5_ENABLE_Z_LIB_SUPPORT=on -B build-dir -S hdf5-${HDF5_SERIES}.${HDF5_PATCH}${HDF5_FIX} && \
+    cmake --build build-dir && \
+    cmake --install build-dir && \
+    rm -rf /tmp/*
+
+# Install ADIOS2 (Python interface in /usr/local/lib), same as GMSH
+RUN wget -nc --quiet https://github.com/ornladios/ADIOS2/archive/v${ADIOS2_VERSION}.tar.gz -O adios2-v${ADIOS2_VERSION}.tar.gz && \
+    mkdir -p adios2-v${ADIOS2_VERSION} && \
+    tar -xf adios2-v${ADIOS2_VERSION}.tar.gz -C adios2-v${ADIOS2_VERSION} --strip-components 1 && \
+    cmake -G Ninja -DADIOS2_USE_HDF5=on -DCMAKE_INSTALL_PYTHONDIR=/usr/local/lib/ -DADIOS2_USE_Fortran=off -DBUILD_TESTING=off -DADIOS2_BUILD_EXAMPLES=off -DADIOS2_USE_ZeroMQ=off -B build-dir -S ./adios2-v${ADIOS2_VERSION} && \
+    cmake --build build-dir && \
+    cmake --install build-dir && \
+    rm -rf /tmp/*
+
+# Install GMSH
+#RUN git clone -b gmsh_${GMSH_VERSION} --single-branch --depth 1 https://gitlab.onelab.info/gmsh/gmsh.git && \
+#    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_DYNAMIC=1  -DENABLE_OPENMP=1 -B build-dir -S gmsh && \
+#    cmake --build build-dir && \
+#    cmake --install build-dir && \
+#    rm -rf /tmp/*
+
+# GMSH installs python library in /usr/local/lib, see: https://gitlab.onelab.info/gmsh/gmsh/-/issues/1414
+ENV PYTHONPATH=/usr/local/lib:$PYTHONPATH
+
+# Install PETSc and petsc4py with real and complex types
+ENV PETSC_DIR=/usr/local/petsc SLEPC_DIR=/usr/local/slepc
+RUN apt-get -qq update && \
+    apt-get -y install bison flex && \
+    git clone --depth=1 -b v${PETSC_VERSION} https://gitlab.com/petsc/petsc.git ${PETSC_DIR} && \
+    cd ${PETSC_DIR} && \
+    # Real32, 32-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-real32-32 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=no \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-metis \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --download-superlu \
+    --download-superlu_dist \
+    --with-scalar-type=real \
+    --with-precision=single && \
+    make PETSC_ARCH=linux-gnu-real32-32 ${MAKEFLAGS} all && \
+    # Complex64, 32-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-complex64-32 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=no \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-metis \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --with-scalar-type=complex \
+    --with-precision=single && \
+    make PETSC_ARCH=linux-gnu-complex64-32 ${MAKEFLAGS} all && \
+    # Real64, 32-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-real64-32 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=no \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-hypre \
+    --download-metis \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --download-spai \
+    --download-suitesparse \
+    --download-superlu \
+    --download-superlu_dist \
+    --with-scalar-type=real \
+    --with-precision=double && \
+    make PETSC_ARCH=linux-gnu-real64-32 ${MAKEFLAGS} all && \
+    # Complex128, 32-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-complex128-32 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=no \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-hypre \
+    --download-metis \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --download-suitesparse \
+    --download-superlu \
+    --download-superlu_dist \
+    --with-scalar-type=complex \
+    --with-precision=double && \
+    make PETSC_ARCH=linux-gnu-complex128-32 ${MAKEFLAGS} all && \
+    # Real64, 64-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-real64-64 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=yes \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-hypre \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --download-suitesparse \
+    --download-superlu_dist \
+    --with-scalar-type=real \
+    --with-precision=double && \
+    make PETSC_ARCH=linux-gnu-real64-64 ${MAKEFLAGS} all && \
+    # Complex128, 64-bit int
+    ./configure \
+    PETSC_ARCH=linux-gnu-complex128-64 \
+    --COPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --CXXOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --FOPTFLAGS="${PETSC_SLEPC_OPTFLAGS}" \
+    --with-64-bit-indices=yes \
+    --with-debugging=${PETSC_SLEPC_DEBUGGING} \
+    --with-fortran-bindings=no \
+    --with-shared-libraries \
+    --download-hypre \
+    --download-mumps \
+    --download-ptscotch \
+    --download-scalapack \
+    --download-suitesparse \
+    --download-superlu_dist \
+    --with-scalar-type=complex \
+    --with-precision=double && \
+    make PETSC_ARCH=linux-gnu-complex128-64 ${MAKEFLAGS} all && \
+    # Install petsc4py
+    cd src/binding/petsc4py && \
+    pip install --no-cache-dir cython wheel && \
+    PETSC_ARCH=linux-gnu-real32-32:linux-gnu-complex64-32:linux-gnu-real64-32:linux-gnu-complex128-32:linux-gnu-real64-64:linux-gnu-complex128-64 pip -v install --no-cache-dir --no-build-isolation . && \
+    # pip3 uninstall --yes cython wheel && \
+    # Cleanup
+    apt-get -y purge bison flex && \
+    apt-get -y autoremove && \
+    apt-get clean && \
+    rm -rf \
+    ${PETSC_DIR}/**/tests/ \
+    ${PETSC_DIR}/**/obj/ \
+    ${PETSC_DIR}/**/externalpackages/  \
+    ${PETSC_DIR}/CTAGS \
+    ${PETSC_DIR}/RDict.log \
+    ${PETSC_DIR}/TAGS \
+    ${PETSC_DIR}/docs/ \
+    ${PETSC_DIR}/share/ \
+    ${PETSC_DIR}/src/ \
+    ${PETSC_DIR}/systems/ \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install SLEPc
+RUN git clone --depth=1 -b v${SLEPC_VERSION} https://gitlab.com/slepc/slepc.git ${SLEPC_DIR} && \
+    cd ${SLEPC_DIR} && \
+    export PETSC_ARCH=linux-gnu-real32-32 && \
+    ./configure && \
+    make && \
+    export PETSC_ARCH=linux-gnu-complex64-32 && \
+    ./configure && \
+    make && \
+    export PETSC_ARCH=linux-gnu-real64-32 && \
+    ./configure && \
+    make && \
+    export PETSC_ARCH=linux-gnu-complex128-32 && \
+    ./configure && \
+    make && \
+    export PETSC_ARCH=linux-gnu-real64-64 && \
+    ./configure && \
+    make && \
+    export PETSC_ARCH=linux-gnu-complex128-64 && \
+    ./configure && \
+    make && \
+    # Install slepc4py
+    cd src/binding/slepc4py && \
+    # pip3 install --break-system-packages --no-cache-dir cython wheel && \
+    PETSC_ARCH=linux-gnu-real32-32:linux-gnu-complex64-32:linux-gnu-real64-32:linux-gnu-complex128-32:linux-gnu-real64-64:linux-gnu-complex128-64 pip -v install --no-cache-dir --no-build-isolation . && \
+    # pip3 uninstall --yes cython wheel && \
+    rm -rf ${SLEPC_DIR}/CTAGS ${SLEPC_DIR}/TAGS ${SLEPC_DIR}/docs ${SLEPC_DIR}/src/ ${SLEPC_DIR}/**/obj/ ${SLEPC_DIR}/**/test/ && \
+    rm -rf /tmp/*
+
+ADD dolfinx-real-mode /usr/local/bin/dolfinx-real-mode
+ADD dolfinx-complex-mode /usr/local/bin/dolfinx-complex-mode
+RUN chmod +x /usr/local/bin/dolfinx-*-mode
+
+WORKDIR /src
+
+RUN git clone --depth 1 --branch v0.8.0 https://github.com/FEniCS/dolfinx.git
+RUN git clone --depth 1 --branch 2024.1.0.post1 https://github.com/FEniCS/ufl.git
+RUN git clone --depth 1 --branch v0.8.0 https://github.com/FEniCS/ffcx.git
+RUN git clone --depth 1 --branch v0.8.0 https://github.com/FEniCS/basix.git
+
+RUN mkdir -p /root/.config/dolfinx/
+RUN mkdir -p /root/.config/ffcx/
+RUN cp dolfinx/docker/dolfinx_jit_options.json /root/.config/dolfinx/dolfinx_jit_options.json
+RUN cp dolfinx/docker/ffcx_options.json /root/.config/ffcx/ffcx_options.json
+
+ARG DOLFINX_CMAKE_BUILD_TYPE="Release"
+
+RUN pip install --no-cache-dir nanobind==1.9.2 scikit-build-core[pyproject]
+
+RUN cd basix && cmake -G Ninja -DCMAKE_BUILD_TYPE=${DOLFINX_CMAKE_BUILD_TYPE} -B build-dir -S ./cpp && \
+    cmake --build build-dir && \
+    cmake --install build-dir && \
+    pip install ./python && \
+    cd ../ufl && pip install --no-cache-dir . && \
+    cd ../ffcx && pip install --no-cache-dir . && \
+    cd ../ && pip install --no-cache-dir ipython
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -qq update && \
+    apt-get -yq --with-new-pkgs -o Dpkg::Options::="--force-confold" upgrade && \
+    apt-get -y install libboost-filesystem-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN cd dolfinx && \
+    mkdir -p build-real && \
+    cd build-real && \
+    PETSC_ARCH=linux-gnu-real64-32 cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/local/dolfinx-real -DCMAKE_BUILD_TYPE=${DOLFINX_CMAKE_BUILD_TYPE} ../cpp && \
+    ninja install && \
+    cd ../python && \
+    PETSC_ARCH=linux-gnu-real64-32 pip -v install \
+      --config-settings=cmake.build-type="${DOLFINX_CMAKE_BUILD_TYPE}" --config-settings=install.strip=false --no-build-isolation --check-build-dependencies \
+      --target /usr/local/dolfinx-real/lib/python${PYTHON_VERSION}/dist-packages --no-dependencies --no-cache-dir . && \
+    git clean -fdx && \
+    cd ../ && \
+    mkdir -p build-complex && \
+    cd build-complex && \
+    PETSC_ARCH=linux-gnu-complex128-32 cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/local/dolfinx-complex -DCMAKE_BUILD_TYPE=${DOLFINX_CMAKE_BUILD_TYPE} ../cpp && \
+    ninja install && \
+    . /usr/local/dolfinx-complex/lib/dolfinx/dolfinx.conf && \
+    cd ../python && \
+    PETSC_ARCH=linux-gnu-complex128-32 pip -v install \
+      --config-settings=cmake.build-type="${DOLFINX_CMAKE_BUILD_TYPE}" --config-settings=install.strip=false --no-build-isolation --check-build-dependencies \
+      --target /usr/local/dolfinx-complex/lib/python${PYTHON_VERSION}/dist-packages --no-dependencies --no-cache-dir .
+
+ENV PKG_CONFIG_PATH=/usr/local/dolfinx-real/lib/pkgconfig:$PKG_CONFIG_PATH \
+    CMAKE_PREFIX_PATH=/usr/local/dolfinx-real/lib/cmake:$CMAKE_PREFIX_PATH \
+    PETSC_ARCH=linux-gnu-real64-32 \
+    PYTHONPATH=/usr/local/dolfinx-real/lib/python${PYTHON_VERSION}/dist-packages:$PYTHONPATH \
+    LD_LIBRARY_PATH=/usr/local/dolfinx-real/lib:$LD_LIBRARY_PATH
