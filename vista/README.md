@@ -1,5 +1,7 @@
 # Build fenics on Vista
 
+This instructions will create a python virtual enviroment with dolfin in the folder `$WORK/fenics-env`
+
 1. Create a folder `build_fenics` in the desired folder. The `fenics-env` will be create in the same folder as `build_fenics`
    ```
    cdw
@@ -35,6 +37,10 @@
    # Call hash to forget past commands. Without forgetting
    # past commands the $PATH changes we made may not be respected
    hash -r 2> /dev/null
+   ```
+7. To use fenics simply do
+   ```
+   source $WORK/fenics-env/bin/activate
    ```
 
    
