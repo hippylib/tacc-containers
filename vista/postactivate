@@ -1,0 +1,13 @@
+module load cmake/3.29.5
+module load gcc
+module load openmpi 
+module load python3
+module load phdf5
+module load boost
+module load ptscotch/7.0.7-i32
+
+module list
+
+export CXX=mpicxx
+export PKG_CONFIG_PATH=/work/03453/villa13/vista/fenics-env/lib64/pkgconfig:$PKG_CONFIG_PATH
+export PATH=/work/03453/villa13/vista/fenics-env/bin:$PATH
